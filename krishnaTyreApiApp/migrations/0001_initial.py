@@ -65,7 +65,7 @@ class Migration(migrations.Migration):
                 ('email', models.EmailField(max_length=254, unique=True)),
                 ('subscribed', models.BooleanField(default=False)),
                 ('mpin', models.CharField(max_length=255)),
-                ('profile_image_url', models.URLField(blank=True, max_length=5000000000000, null=True)),
+                ('profile_image_url', models.URLField(blank=True, max_length=500, null=True)),
                 ('is_active', models.BooleanField(default=True)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),

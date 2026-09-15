@@ -22,7 +22,7 @@ class User(models.Model):
     number = models.CharField(max_length=15, unique=True)
     subscribed = models.BooleanField(default=False)
     mpin = models.CharField(max_length=255)
-    profile_image_url = models.URLField(max_length=5000000000000,blank=True,null=True)
+    profile_image_url = models.URLField(max_length=500, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     shop_open = models.BooleanField(default=True,help_text="Whether the shop is currently open and accepting bookings.")
     emergency_service = models.BooleanField(default=False,help_text="Whether this owner offers 24/7 emergency roadside service."
@@ -98,7 +98,7 @@ class Products(models.Model):
     brand_name = models.CharField(max_length=150)
     vehicle_name = models.CharField(max_length=150)
     description = models.TextField(blank=True, null=True)
-    product_image_url = models.URLField(max_length=5000000000000,blank=True,null=True)
+    product_image_url = models.URLField(max_length=500,blank=True,null=True)
 
     created_at = models.DateTimeField( auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

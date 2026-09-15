@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='products',
             name='product_image_url',
-            field=models.URLField(blank=True, max_length=5000000000000, null=True),
+            field=models.URLField(blank=True, max_length=500, null=True),
         ),
     ]
