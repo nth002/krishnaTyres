@@ -1,0 +1,37 @@
+from django.urls import path
+from .views import *
+
+urlpatterns = [
+    path('roles/', get_roles, name='get_roles'),
+    path('register/', register_user, name='register_user'),
+    path('categories/', get_categories, name='get_categories'),
+    path('services/', get_services, name='get_services'),
+    path('login/', login_user, name='login_user'),
+    path('notifications/',get_notifications,name='get_notifications'),
+    path('notifications/<int:notification_id>/read/', mark_notification_read,name='mark_notification_read'),
+    path('notifications/read-all/',mark_all_notifications_read,name='mark_all_notifications_read'),
+    path('profile/image/',update_profile_image,name='update_profile_image'),
+    path('products/add/',add_product,name='add_product'),
+    path('products/',get_products,name='get_products'),
+    path('products/<int:product_id>/stock/',update_product_stock,name='update_product_stock'),
+    path('products/<int:product_id>/availability/',update_product_availability,name='update_product_availability'),
+    path('products/<int:product_id>/delete/',delete_product,name='delete_product'),
+    path('products/all/',get_all_products,name='get_all_products'),
+    path('owners/',get_owners,name='get_owners'),
+    path('appointments/create/',create_appointment,name='create_appointment'),
+    path('appointments/my/',get_my_appointments,name='get_my_appointments'),
+    path('appointments/received/',get_received_appointments,name='get_received_appointments'),
+    path('appointments/<int:appointment_id>/status/', update_appointment_status, name='update_appointment_status'),
+    path('emergency/create/',create_emergency_appointment,name='create_emergency_appointment'),
+    path('emergency/received/',get_received_emergencies,     name='get_received_emergencies'),
+    path('emergency/my/', get_my_emergencies, name='get_my_emergencies'),
+    path('emergency/<int:emergency_id>/status/',update_emergency_status,name='update_emergency_status'),
+    path('bills/create/', create_bill, name='create_bill'),
+    path('bills/', get_bills, name='get_bills'),
+    path('owner/shop-status/',       update_shop_status,       name='update_shop_status'),
+    path('owner/emergency-service/', update_emergency_service, name='update_emergency_service'),
+    path('orders/place/', place_order, name='place_order'),
+    path('orders/', get_orders, name='get_orders'),
+    path('orders/<int:order_id>/status/', update_order_status, name='update_order_status'),
+
+]
