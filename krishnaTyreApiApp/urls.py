@@ -33,5 +33,10 @@ urlpatterns = [
     path('orders/place/', place_order, name='place_order'),
     path('orders/', get_orders, name='get_orders'),
     path('orders/<int:order_id>/status/', update_order_status, name='update_order_status'),
+    path('kyc/submit/', submit_kyc, name='submit_kyc'),
+    path('kyc/', get_kyc, name='get_kyc'),
+    path('subscription/create/', create_subscription, name='create_subscription'),
+    path('subscription/activate/', activate_subscription, name='activate_subscription'),
+    path('subscription/', get_subscription, name='get_subscription'),
 
 ]

@@ -1,5 +1,5 @@
 import jwt
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from django.conf import settings
 from rest_framework.decorators import api_view, authentication_classes
@@ -15,6 +15,8 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
+from django.utils import timezone
+
 
 # global API's
 
@@ -190,6 +192,8 @@ def get_roles(request):
             "role_name": role.role_name,
             "role_code": role.role_code,
         })
+    
+    print("data : ", data)
 
     return Response({
         "status": True,
@@ -392,7 +396,26 @@ def login_user(request):
         settings.SECRET_KEY,
         algorithm="HS256"
     )
-  
+
+    # ═══════════════════════════════════════════════════════════════
+    # 🆕 KYC check — only for OWNER role
+    # ═══════════════════════════════════════════════════════════════
+    is_owner = user.role.role_code.upper() == 'OWN'
+    kyc_status = None
+    kyc_required = False
+
+    if is_owner:
+        try:
+            kyc = Kyc.objects.get(u_id=user)
+            kyc_status = kyc.status
+        except Kyc.DoesNotExist:
+            kyc_status = None
+
+        # Owner needs KYC if no record exists OR previous was rejected
+        if kyc_status is None or kyc_status == 'rejected':
+            kyc_required = True
+
+
     return Response({
         "status": True,
         "message": "Login successful",
@@ -412,7 +435,11 @@ def login_user(request):
             },
             "access_token": token,
             "token_type": "Bearer",
-            "expires_at": expiration
+            "expires_at": expiration,
+
+            # 🆕 KYC fields
+            "kyc_required": kyc_required,
+            "kyc_status": kyc_status,
         }
     }, status=status.HTTP_200_OK)
 
@@ -2398,3 +2425,397 @@ def update_order_status(request, order_id):
             "updated_at": order.updated_at,
         }
     }, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@authentication_classes([BearerAuthentication])
+def submit_kyc(request):
+  
+    user = request.user
+
+    aadhaar = (request.data.get('aadhaar_number') or '').strip()
+    pan = (request.data.get('pan_number') or '').strip().upper()
+    gst = (request.data.get('gst_number') or '').strip().upper()
+
+    # ─── Validation ────────────────────────────────────────────
+    if not aadhaar:
+        return Response(
+            {'status': False, 'message': 'Aadhaar number is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(aadhaar) != 12 or not aadhaar.isdigit():
+        return Response(
+            {'status': False, 'message': 'Aadhaar must be 12 digits'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not pan:
+        return Response(
+            {'status': False, 'message': 'PAN number is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    import re
+    pan_pattern = re.compile(r'^[A-Z]{5}[0-9]{4}[A-Z]$')
+    if not pan_pattern.match(pan):
+        return Response(
+            {'status': False, 'message': 'Invalid PAN format (ABCDE1234F)'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if gst and len(gst) != 15:
+        return Response(
+            {'status': False, 'message': 'GST must be 15 characters'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # ─── Uniqueness checks (excluding this user's own record) ──
+    aadhaar_used = Kyc.objects.filter(
+        aadhaar_number=aadhaar
+    ).exclude(u_id=user).exists()
+
+    if aadhaar_used:
+        return Response(
+            {
+                'status': False,
+                'message': 'This Aadhaar is already registered with another account',
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    pan_used = Kyc.objects.filter(
+        pan_number=pan
+    ).exclude(u_id=user).exists()
+
+    if pan_used:
+        return Response(
+            {
+                'status': False,
+                'message': 'This PAN is already registered with another account',
+            },
+            status=status.HTTP_409_CONFLICT,
+        )
+
+    # ─── Save (create or update) ───────────────────────────────
+    kyc, created = Kyc.objects.update_or_create(
+        u_id=user,
+        defaults={
+            'aadhaar_number': aadhaar,
+            'pan_number': pan,
+            'gst_number': gst if gst else None,
+            'status': 'Submmitted',
+        },
+    )
+
+    return Response({
+        'status': True,
+        'message': 'KYC submitted successfully' if created else 'KYC updated successfully',
+        'data': {
+            'kyc_id': kyc.kyc_id,
+            'aadhaar_number': kyc.aadhaar_number,
+            'pan_number': kyc.pan_number,
+            'gst_number': kyc.gst_number,
+            'status': kyc.status,
+            'created_at': kyc.created_at,
+            'updated_at': kyc.updated_at,
+        },
+    }, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([BearerAuthentication])
+def get_kyc(request):
+    try:
+        kyc = Kyc.objects.get(u_id=request.user)
+    except Kyc.DoesNotExist:
+        return Response({
+            'status': True,
+            'data': None,
+            'message': 'No KYC submitted yet',
+        }, status=status.HTTP_200_OK)
+
+    return Response({
+        'status': True,
+        'data': {
+            'kyc_id': kyc.kyc_id,
+            'aadhaar_number': kyc.aadhaar_number,
+            'pan_number': kyc.pan_number,
+            'gst_number': kyc.gst_number,
+            'status': kyc.status,
+            'created_at': kyc.created_at,
+            'updated_at': kyc.updated_at,
+        },
+    }, status=status.HTTP_200_OK)
+
+
+_PLAN_DURATION_DAYS = {
+    '3m': 90,
+    '6m': 180,
+    '1y': 365,
+}
+
+_VEHICLE_NAMES = {
+    'bike': 'Bike',
+    'auto': 'Auto / 3-Wheeler',
+    'car': 'Car',
+    'van': 'Van',
+    'truck': 'Truck',
+    'container': 'Container Truck',
+}
+
+
+def _duration_days_from_plan(plan_id: str) -> int:
+    """'car_6m' → 180"""
+    suffix = plan_id.split('_')[-1] if '_' in plan_id else '3m'
+    return _PLAN_DURATION_DAYS.get(suffix, 90)
+
+
+@api_view(['POST'])
+@authentication_classes([BearerAuthentication])
+def create_subscription(request):
+    """
+    POST /api/subscription/create/
+
+    Headers:
+        Authorization: Bearer <access_token>
+
+    Body:
+        {
+            "plan_id": "car_6m",
+            "vehicle_type": "car",
+            "plan_title": "Half Yearly",
+            "amount_paise": 109900
+        }
+
+    Returns the created subscription in `pending` status.
+    """
+    user = request.user
+
+    plan_id = (request.data.get('plan_id') or '').strip().lower()
+    vehicle_type = (request.data.get('vehicle_type') or '').strip().lower()
+    plan_title = (request.data.get('plan_title') or '').strip()
+    amount_paise = request.data.get('amount_paise')
+
+    # ─── Validation ────────────────────────────────────────
+    if not plan_id:
+        return Response(
+            {'status': False, 'message': 'plan_id is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not vehicle_type:
+        return Response(
+            {'status': False, 'message': 'vehicle_type is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not plan_title:
+        return Response(
+            {'status': False, 'message': 'plan_title is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        amount_paise = int(amount_paise)
+    except (TypeError, ValueError):
+        return Response(
+            {'status': False, 'message': 'amount_paise must be an integer'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if amount_paise <= 0:
+        return Response(
+            {'status': False, 'message': 'amount_paise must be > 0'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Check for a valid plan_id
+    valid_plan_ids = [p[0] for p in Subscription.PLAN_CHOICES]
+    if plan_id not in valid_plan_ids:
+        return Response(
+            {'status': False, 'message': f'Invalid plan_id: {plan_id}'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Check vehicle_type
+    valid_vehicles = [v[0] for v in Subscription.VEHICLE_CHOICES]
+    if vehicle_type not in valid_vehicles:
+        return Response(
+            {'status': False, 'message': f'Invalid vehicle_type: {vehicle_type}'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # ─── Deactivate any existing pending subscription for this user ─
+    Subscription.objects.filter(
+        u_id=user,
+        status='pending',
+    ).update(status='cancelled')
+
+    # ─── Create the new subscription ───────────────────────
+    sub = Subscription.objects.create(
+        u_id=user,
+        plan_id=plan_id,
+        vehicle_type=vehicle_type,
+        plan_title=plan_title,
+        amount_paise=amount_paise,
+        currency='INR',
+        duration_days=_duration_days_from_plan(plan_id),
+        status='pending',
+        payment_method='razorpay',
+    )
+
+    return Response({
+        'status': True,
+        'message': 'Subscription created (pending payment)',
+        'data': {
+            'subscription_id': sub.subscription_id,
+            'plan_id': sub.plan_id,
+            'vehicle_type': sub.vehicle_type,
+            'vehicle_name': _VEHICLE_NAMES.get(sub.vehicle_type, sub.vehicle_type),
+            'plan_title': sub.plan_title,
+            'amount_paise': sub.amount_paise,
+            'currency': sub.currency,
+            'duration_days': sub.duration_days,
+            'status': sub.status,
+            'created_at': sub.created_at,
+        },
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@authentication_classes([BearerAuthentication])
+def activate_subscription(request):
+    """
+    POST /api/subscription/activate/
+
+    Body:
+        {
+            "subscription_id": 5,
+            "razorpay_payment_id": "pay_xxxx",
+            "razorpay_order_id": "order_xxxx",       (optional)
+            "razorpay_signature": "sig_xxxx",        (optional)
+            "payment_method": "razorpay"             (optional, default 'razorpay')
+        }
+
+    Marks the subscription as active and sets:
+        - started_at = now
+        - expires_at = now + duration_days
+    """
+    user = request.user
+
+    subscription_id = request.data.get('subscription_id')
+    payment_id = (request.data.get('razorpay_payment_id') or '').strip()
+    order_id = (request.data.get('razorpay_order_id') or '').strip()
+    signature = (request.data.get('razorpay_signature') or '').strip()
+    payment_method = (request.data.get('payment_method') or 'razorpay').strip()
+
+    if not subscription_id:
+        return Response(
+            {'status': False, 'message': 'subscription_id is required'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        sub = Subscription.objects.get(
+            subscription_id=subscription_id,
+            u_id=user,
+        )
+    except Subscription.DoesNotExist:
+        return Response(
+            {'status': False, 'message': 'Subscription not found'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    if sub.status == 'active':
+        return Response({
+            'status': True,
+            'message': 'Subscription already active',
+            'data': _serialize_subscription(sub),
+        }, status=status.HTTP_200_OK)
+
+    # ─── Activate ─────────────────────────────────────────
+    now = timezone.now()
+    expires = now + timedelta(days=sub.duration_days)
+
+    sub.status = 'active'
+    sub.started_at = now
+    sub.expires_at = expires
+    sub.payment_method = payment_method
+    if payment_id:
+        sub.razorpay_payment_id = payment_id
+    if order_id:
+        sub.razorpay_order_id = order_id
+    if signature:
+        sub.razorpay_signature = signature
+    sub.save()
+
+    # ─── Update User.subscribed flag ──────────────────────
+    User.objects.filter(u_id=user.u_id).update(subscribed=True)
+
+    return Response({
+        'status': True,
+        'message': 'Subscription activated successfully',
+        'data': _serialize_subscription(sub),
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@authentication_classes([BearerAuthentication])
+def get_subscription(request):
+
+    user = request.user
+    now = timezone.now()
+
+    # Auto-expire stale rows
+    Subscription.objects.filter(
+        u_id=user,
+        status='active',
+        expires_at__lt=now,
+    ).update(status='expired')
+
+    all_subs = Subscription.objects.filter(u_id=user).order_by('-created_at')
+
+    active_sub = all_subs.filter(
+        status='active',
+        expires_at__gt=now,
+    ).first()
+
+    history = [_serialize_subscription(s) for s in all_subs]
+
+    # Sync user.subscribed flag
+    should_be_subscribed = active_sub is not None
+    if user.subscribed != should_be_subscribed:
+        User.objects.filter(u_id=user.u_id).update(subscribed=should_be_subscribed)
+
+    return Response({
+        'status': True,
+        'message': 'Subscriptions fetched',
+        'data': {
+            'active': _serialize_subscription(active_sub) if active_sub else None,
+            'history': history,
+        },
+    }, status=status.HTTP_200_OK)
+
+
+def _serialize_subscription(sub):
+    if sub is None:
+        return None
+    return {
+        'subscription_id': sub.subscription_id,
+        'plan_id': sub.plan_id,
+        'vehicle_type': sub.vehicle_type,
+        'vehicle_name': _VEHICLE_NAMES.get(sub.vehicle_type, sub.vehicle_type),
+        'plan_title': sub.plan_title,
+        'amount_paise': sub.amount_paise,
+        'amount_rupees': sub.amount_paise / 100,
+        'currency': sub.currency,
+        'duration_days': sub.duration_days,
+        'payment_method': sub.payment_method,
+        'razorpay_payment_id': sub.razorpay_payment_id,
+        'status': sub.status,
+        'started_at': sub.started_at,
+        'expires_at': sub.expires_at,
+        'created_at': sub.created_at,
+        'updated_at': sub.updated_at,
+    }

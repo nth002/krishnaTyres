@@ -239,3 +239,171 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product_name} x {self.quantity}"
+
+
+class Kyc(models.Model):
+    kyc_id = models.AutoField(primary_key=True)
+    u_id = models.ForeignKey(User,on_delete=models.CASCADE,related_name='kyc',db_column='u_id',)
+    aadhaar_number = models.CharField(max_length=12, unique=True)
+    pan_number = models.CharField(max_length=10, unique=True)
+    gst_number = models.CharField(max_length=15,blank=True,null=True,)
+    status = models.CharField(max_length=20,default='pending', help_text='pending | verified | rejected',)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'kyc'
+        indexes = [
+            models.Index(fields=['u_id']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f'KYC #{self.kyc_id} — {self.u_id.name}'
+
+
+class Subscription(models.Model):
+    """
+    Stores Premium subscription records for users.
+    One user can have multiple subscription history rows, but only one active at a time.
+    """
+
+    PLAN_CHOICES = [
+        # Bike
+        ('bike_3m', 'Bike - Quarterly'),
+        ('bike_6m', 'Bike - Half Yearly'),
+        ('bike_1y', 'Bike - Yearly'),
+        # Auto
+        ('auto_3m', 'Auto - Quarterly'),
+        ('auto_6m', 'Auto - Half Yearly'),
+        ('auto_1y', 'Auto - Yearly'),
+        # Car
+        ('car_3m', 'Car - Quarterly'),
+        ('car_6m', 'Car - Half Yearly'),
+        ('car_1y', 'Car - Yearly'),
+        # Van
+        ('van_3m', 'Van - Quarterly'),
+        ('van_6m', 'Van - Half Yearly'),
+        ('van_1y', 'Van - Yearly'),
+        # Truck
+        ('truck_3m', 'Truck - Quarterly'),
+        ('truck_6m', 'Truck - Half Yearly'),
+        ('truck_1y', 'Truck - Yearly'),
+        # Container
+        ('container_3m', 'Container - Quarterly'),
+        ('container_6m', 'Container - Half Yearly'),
+        ('container_1y', 'Container - Yearly'),
+    ]
+
+    VEHICLE_CHOICES = [
+        ('bike', 'Bike'),
+        ('auto', 'Auto / 3-Wheeler'),
+        ('car', 'Car'),
+        ('van', 'Van'),
+        ('truck', 'Truck'),
+        ('container', 'Container Truck'),
+    ]
+
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('active', 'Active'),
+        ('expired', 'Expired'),
+        ('cancelled', 'Cancelled'),
+        ('failed', 'Failed'),
+    ]
+
+    subscription_id = models.AutoField(primary_key=True)
+
+    u_id = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='subscriptions',
+        db_column='u_id',
+    )
+
+    # Plan details
+    plan_id = models.CharField(
+        max_length=30,
+        choices=PLAN_CHOICES,
+        help_text='Plan identifier (e.g. car_6m)',
+    )
+    vehicle_type = models.CharField(
+        max_length=20,
+        choices=VEHICLE_CHOICES,
+        help_text='Vehicle category',
+    )
+    plan_title = models.CharField(
+        max_length=50,
+        help_text='Display name (Quarterly / Half Yearly / Yearly)',
+    )
+
+    # Amounts (store in paise to avoid float issues, matching Razorpay)
+    amount_paise = models.IntegerField(
+        help_text='Amount in paise (e.g. 109900 = ₹1099)',
+    )
+    currency = models.CharField(
+        max_length=10,
+        default='INR',
+    )
+    duration_days = models.IntegerField(
+        help_text='Plan duration in days',
+    )
+
+    # Payment tracking (Razorpay)
+    razorpay_payment_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        unique=True,
+    )
+    razorpay_order_id = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+    )
+    razorpay_signature = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    payment_method = models.CharField(
+        max_length=30,
+        default='razorpay',
+        help_text='razorpay | manual | upi',
+    )
+
+    # Subscription lifecycle
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default='pending',
+    )
+    started_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text='Set when subscription becomes active',
+    )
+    expires_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text='Calculated from started_at + duration_days',
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'subscriptions'
+        indexes = [
+            models.Index(fields=['u_id', 'status']),
+            models.Index(fields=['status', 'expires_at']),
+        ]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return (
+            f'SUB #{self.subscription_id} — '
+            f'{self.u_id.name} — {self.plan_id} — {self.status}'
+        )
