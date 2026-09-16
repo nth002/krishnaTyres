@@ -39,4 +39,7 @@ urlpatterns = [
     path('subscription/activate/', activate_subscription, name='activate_subscription'),
     path('subscription/', get_subscription, name='get_subscription'),
 
+    path('admin-page/', admin_page, name='admin_page'),
+    path('admin/users/', list_all_users, name='list_all_users'),
+    path('admin/users/full/', list_all_users_full, name='list_all_users_full'),
 ]

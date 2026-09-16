@@ -16,8 +16,14 @@ from channels.layers import get_channel_layer
 from decimal import Decimal, InvalidOperation
 from django.db import transaction
 from django.utils import timezone
+from django.shortcuts import render
 
 
+def admin_page(request):
+    """Serves the super-admin HTML console."""
+    return render(request, 'adminpage.html')
+
+    
 # global API's
 
 class BearerAuthentication(BaseAuthentication):
@@ -2819,3 +2825,483 @@ def _serialize_subscription(sub):
         'created_at': sub.created_at,
         'updated_at': sub.updated_at,
     }
+
+
+
+
+from .models import (
+    User, Role, Kyc, Subscription, Notification, Category, Service,
+    Products, Appointments, EmergencyAppointments,
+    GeneratedBills, GeneratedBillServices, Order, OrderItem,
+)
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Shared helpers
+# ═══════════════════════════════════════════════════════════════════════════
+def _dt(dt):
+    return dt.isoformat() if dt else None
+
+
+def _dec(v):
+    return float(v) if v is not None else 0.0
+
+
+def _user_brief(u):
+    if not u:
+        return None
+    return {
+        'u_id': u.u_id,
+        'name': u.name,
+        'number': u.number,
+        'profile_image_url': u.profile_image_url,
+        'role': {
+            'role_id': u.role.role_id,
+            'role_name': u.role.role_name,
+            'role_code': u.role.role_code,
+        },
+    }
+
+
+def _serialize_full_user(user, now):
+    """
+    Build the full data tree for a single user.
+    Used by both the single-user and all-users endpoints.
+    """
+    # ── USER ─────────────────────────────────────────────
+    user_data = {
+        'u_id': user.u_id,
+        'name': user.name,
+        'number': user.number,
+        'subscribed': user.subscribed,
+        'profile_image_url': user.profile_image_url,
+        'is_active': user.is_active,
+        'shop_open': user.shop_open,
+        'emergency_service': user.emergency_service,
+        'role': {
+            'role_id': user.role.role_id,
+            'role_name': user.role.role_name,
+            'role_code': user.role.role_code,
+        },
+        'created_at': _dt(user.created_at),
+        'updated_at': _dt(user.updated_at),
+    }
+
+    # ── KYC ──────────────────────────────────────────────
+    kyc_data = None
+    try:
+        kyc = Kyc.objects.get(u_id=user)
+        kyc_data = {
+            'kyc_id': kyc.kyc_id,
+            'aadhaar_number': kyc.aadhaar_number,
+            'pan_number': kyc.pan_number,
+            'gst_number': kyc.gst_number,
+            'status': kyc.status,
+            'created_at': _dt(kyc.created_at),
+            'updated_at': _dt(kyc.updated_at),
+        }
+    except Kyc.DoesNotExist:
+        pass
+
+    # ── SUBSCRIPTIONS ────────────────────────────────────
+    subs_qs = Subscription.objects.filter(u_id=user).order_by('-created_at')
+
+    def _sub_json(s):
+        return {
+            'subscription_id': s.subscription_id,
+            'plan_id': s.plan_id,
+            'vehicle_type': s.vehicle_type,
+            'plan_title': s.plan_title,
+            'amount_paise': s.amount_paise,
+            'amount_rupees': s.amount_paise / 100.0,
+            'currency': s.currency,
+            'duration_days': s.duration_days,
+            'razorpay_payment_id': s.razorpay_payment_id,
+            'razorpay_order_id': s.razorpay_order_id,
+            'payment_method': s.payment_method,
+            'status': s.status,
+            'started_at': _dt(s.started_at),
+            'expires_at': _dt(s.expires_at),
+            'created_at': _dt(s.created_at),
+        }
+
+    active_sub = subs_qs.filter(status='active', expires_at__gt=now).first()
+
+    subscriptions_data = {
+        'active': _sub_json(active_sub) if active_sub else None,
+        'history': [_sub_json(s) for s in subs_qs],
+    }
+
+    # ── APPOINTMENTS ─────────────────────────────────────
+    def _appt_json(a):
+        return {
+            'appointment_id': a.appointment_id,
+            'service_center': _user_brief(a.service_center),
+            'customer': _user_brief(a.customer),
+            'vehicle_model': a.vehicle_model,
+            'vehicle_number': a.vehicle_number,
+            'service_type': a.service_type,
+            'description': a.description,
+            'estimated_cost': _dec(a.estimated_cost),
+            'appointment_date': a.appointment_date.isoformat()
+                if a.appointment_date else None,
+            'appointment_time': a.appointment_time.isoformat()
+                if a.appointment_time else None,
+            'status': a.status,
+            'created_at': _dt(a.created_at),
+            'updated_at': _dt(a.updated_at),
+        }
+
+    appointments_as_customer = [
+        _appt_json(a) for a in
+        Appointments.objects.filter(customer=user)
+        .select_related('service_center', 'service_center__role',
+                        'customer', 'customer__role')
+        .order_by('-created_at')
+    ]
+    appointments_as_owner = [
+        _appt_json(a) for a in
+        Appointments.objects.filter(service_center=user)
+        .select_related('service_center', 'service_center__role',
+                        'customer', 'customer__role')
+        .order_by('-created_at')
+    ]
+
+    # ── EMERGENCIES ──────────────────────────────────────
+    def _emg_json(e):
+        return {
+            'emergency_id': e.emergency_id,
+            'service_center': _user_brief(e.service_center),
+            'customer': _user_brief(e.customer),
+            'vehicle_model': e.vehicle_model,
+            'vehicle_number': e.vehicle_number,
+            'description': e.description,
+            'location': e.location,
+            'issue_photo_urls': e.issue_photo_urls or [],
+            'status': e.status,
+            'created_at': _dt(e.created_at),
+            'updated_at': _dt(e.updated_at),
+        }
+
+    emergencies_as_customer = [
+        _emg_json(e) for e in
+        EmergencyAppointments.objects.filter(customer=user)
+        .select_related('service_center', 'service_center__role',
+                        'customer', 'customer__role')
+        .order_by('-created_at')
+    ]
+    emergencies_as_owner = [
+        _emg_json(e) for e in
+        EmergencyAppointments.objects.filter(service_center=user)
+        .select_related('service_center', 'service_center__role',
+                        'customer', 'customer__role')
+        .order_by('-created_at')
+    ]
+
+    # ── BILLS ────────────────────────────────────────────
+    def _bill_json(b):
+        return {
+            'bill_id': b.bill_id,
+            'owner': _user_brief(b.owner),
+            'customer': _user_brief(b.customer),
+            'customer_name': b.customer_name,
+            'phone_number': b.phone_number,
+            'vehicle_number': b.vehicle_number,
+            'subtotal': _dec(b.subtotal),
+            'tax_percentage': _dec(b.tax_percentage),
+            'tax_amount': _dec(b.tax_amount),
+            'total_amount': _dec(b.total_amount),
+            'generated_at': _dt(b.generated_at),
+            'updated_at': _dt(b.updated_at),
+            'services': [
+                {
+                    'bill_service_id': s.bill_service_id,
+                    'service_name': s.service_name,
+                    'quantity': s.quantity,
+                    'service_price': _dec(s.service_price),
+                    'total_price': _dec(s.total_price),
+                }
+                for s in b.services.all()
+            ],
+        }
+
+    bills_as_owner = [
+        _bill_json(b) for b in
+        GeneratedBills.objects.filter(owner=user)
+        .prefetch_related('services')
+        .select_related('owner', 'owner__role', 'customer', 'customer__role')
+        .order_by('-generated_at')
+    ]
+    bills_as_customer = [
+        _bill_json(b) for b in
+        GeneratedBills.objects.filter(customer=user)
+        .prefetch_related('services')
+        .select_related('owner', 'owner__role', 'customer', 'customer__role')
+        .order_by('-generated_at')
+    ]
+
+    # ── ORDERS ───────────────────────────────────────────
+    def _order_json(o):
+        return {
+            'order_id': o.order_id,
+            'customer': _user_brief(o.customer),
+            'owner': _user_brief(o.owner),
+            'customer_name': o.customer_name,
+            'phone_number': o.phone_number,
+            'address_line': o.address_line,
+            'city': o.city,
+            'state': o.state,
+            'pincode': o.pincode,
+            'landmark': o.landmark,
+            'subtotal': _dec(o.subtotal),
+            'tax_amount': _dec(o.tax_amount),
+            'delivery_charge': _dec(o.delivery_charge),
+            'total_amount': _dec(o.total_amount),
+            'status': o.status,
+            'payment_method': o.payment_method,
+            'payment_status': o.payment_status,
+            'placed_at': _dt(o.placed_at),
+            'updated_at': _dt(o.updated_at),
+            'items': [
+                {
+                    'order_item_id': it.order_item_id,
+                    'product_id': it.product.product_id if it.product else None,
+                    'product_name': it.product_name,
+                    'product_price': _dec(it.product_price),
+                    'quantity': it.quantity,
+                    'total_price': _dec(it.total_price),
+                }
+                for it in o.items.all()
+            ],
+        }
+
+    orders_placed = [
+        _order_json(o) for o in
+        Order.objects.filter(customer=user)
+        .prefetch_related('items')
+        .select_related('customer', 'customer__role', 'owner', 'owner__role')
+        .order_by('-placed_at')
+    ]
+    orders_received = [
+        _order_json(o) for o in
+        Order.objects.filter(owner=user)
+        .prefetch_related('items')
+        .select_related('customer', 'customer__role', 'owner', 'owner__role')
+        .order_by('-placed_at')
+    ]
+
+    # ── PRODUCTS ─────────────────────────────────────────
+    products_data = [
+        {
+            'product_id': p.product_id,
+            'product_name': p.product_name,
+            'product_price': _dec(p.product_price),
+            'stock_number': p.stock_number,
+            'category': p.category,
+            'is_available': p.is_available,
+            'brand_name': p.brand_name,
+            'vehicle_name': p.vehicle_name,
+            'description': p.description,
+            'product_image_url': p.product_image_url,
+            'created_at': _dt(p.created_at),
+            'updated_at': _dt(p.updated_at),
+        }
+        for p in
+        Products.objects.filter(user=user).order_by('-created_at')
+    ]
+
+    # ── NOTIFICATIONS ────────────────────────────────────
+    notifications_data = [
+        {
+            'notification_id': n.notification_id,
+            'title': n.title,
+            'message': n.message,
+            'is_read': n.is_read,
+            'created_at': _dt(n.created_at),
+        }
+        for n in
+        Notification.objects.filter(receiver=user)
+        .order_by('-created_at')[:50]
+    ]
+
+    unread_count = Notification.objects.filter(
+        receiver=user, is_read=False,
+    ).count()
+
+    # ── SUMMARY ──────────────────────────────────────────
+    summary = {
+        'subscriptions': {
+            'total': subs_qs.count(),
+            'active': subs_qs.filter(
+                status='active', expires_at__gt=now,
+            ).count(),
+        },
+        'appointments': {
+            'as_customer_total': len(appointments_as_customer),
+            'as_owner_total': len(appointments_as_owner),
+        },
+        'emergencies': {
+            'as_customer_total': len(emergencies_as_customer),
+            'as_owner_total': len(emergencies_as_owner),
+        },
+        'bills': {
+            'as_owner_total': len(bills_as_owner),
+            'as_customer_total': len(bills_as_customer),
+        },
+        'orders': {
+            'placed_total': len(orders_placed),
+            'received_total': len(orders_received),
+        },
+        'products_listed': len(products_data),
+        'notifications': {
+            'total': Notification.objects.filter(receiver=user).count(),
+            'unread': unread_count,
+        },
+    }
+
+    return {
+        'user': user_data,
+        'kyc': kyc_data,
+        'subscriptions': subscriptions_data,
+        'appointments': {
+            'as_customer': appointments_as_customer,
+            'as_owner': appointments_as_owner,
+        },
+        'emergencies': {
+            'as_customer': emergencies_as_customer,
+            'as_owner': emergencies_as_owner,
+        },
+        'bills': {
+            'as_owner': bills_as_owner,
+            'as_customer': bills_as_customer,
+        },
+        'orders': {
+            'placed': orders_placed,
+            'received': orders_received,
+        },
+        'products': products_data,
+        'notifications': notifications_data,
+        'summary': summary,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 1. LIGHT LIST — all users (just the essentials)
+#    GET /api/admin/users/
+# ═══════════════════════════════════════════════════════════════════════════
+@api_view(['GET'])
+def list_all_users(request):
+    """
+    Returns a lightweight list of all users.
+    Optional query params:
+      ?role=OWN            → filter by role code
+      ?active=true         → only is_active=True
+      ?subscribed=true     → only subscribed users
+      ?search=xyz          → match name or number
+    """
+    qs = User.objects.select_related('role').order_by('-created_at')
+
+    role_code = request.query_params.get('role')
+    if role_code:
+        qs = qs.filter(role__role_code__iexact=role_code)
+
+    active = request.query_params.get('active')
+    if active is not None:
+        qs = qs.filter(is_active=active.lower() == 'true')
+
+    subscribed = request.query_params.get('subscribed')
+    if subscribed is not None:
+        qs = qs.filter(subscribed=subscribed.lower() == 'true')
+
+    search = request.query_params.get('search')
+    if search:
+        qs = qs.filter(
+            models.Q(name__icontains=search) |
+            models.Q(number__icontains=search)
+        )
+
+    users_payload = []
+    for u in qs:
+        users_payload.append({
+            'u_id': u.u_id,
+            'name': u.name,
+            'number': u.number,
+            'subscribed': u.subscribed,
+            'is_active': u.is_active,
+            'shop_open': u.shop_open,
+            'emergency_service': u.emergency_service,
+            'profile_image_url': u.profile_image_url,
+            'role': {
+                'role_id': u.role.role_id,
+                'role_name': u.role.role_name,
+                'role_code': u.role.role_code,
+            },
+            'created_at': u.created_at.isoformat() if u.created_at else None,
+        })
+
+    return Response({
+        'status': True,
+        'message': f'{len(users_payload)} users fetched',
+        'count': len(users_payload),
+        'data': users_payload,
+    }, status=status.HTTP_200_OK)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 2. FULL LIST — all users with everything attached
+#    GET /api/admin/users/full/
+#
+#    ⚠️ Heavy response. For small/medium user bases only.
+# ═══════════════════════════════════════════════════════════════════════════
+@api_view(['GET'])
+def list_all_users_full(request):
+    """
+    Returns a list where EACH user has their entire data tree:
+    KYC, subscriptions, appointments, emergencies, bills, orders,
+    products, notifications, summary.
+
+    Optional query params (same as the light list):
+      ?role=OWN
+      ?active=true
+      ?subscribed=true
+      ?search=xyz
+    """
+    qs = User.objects.select_related('role').order_by('-created_at')
+
+    role_code = request.query_params.get('role')
+    if role_code:
+        qs = qs.filter(role__role_code__iexact=role_code)
+
+    active = request.query_params.get('active')
+    if active is not None:
+        qs = qs.filter(is_active=active.lower() == 'true')
+
+    subscribed = request.query_params.get('subscribed')
+    if subscribed is not None:
+        qs = qs.filter(subscribed=subscribed.lower() == 'true')
+
+    search = request.query_params.get('search')
+    if search:
+        qs = qs.filter(
+            models.Q(name__icontains=search) |
+            models.Q(number__icontains=search)
+        )
+
+    now = timezone.now()
+
+    # Auto-expire old active subscriptions in bulk (once, not per user)
+    Subscription.objects.filter(
+        status='active', expires_at__lt=now,
+    ).update(status='expired')
+
+    payload = []
+    for u in qs:
+        payload.append(_serialize_full_user(u, now))
+
+    return Response({
+        'status': True,
+        'message': f'Full data for {len(payload)} users fetched',
+        'count': len(payload),
+        'data': payload,
+    }, status=status.HTTP_200_OK)

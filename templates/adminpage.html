@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Krishna Tyre — Admin Console</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --black: #0A0A0C;
+    --dark: #15151A;
+    --card: #1C1C22;
+    --card-hover: #232329;
+    --border: #2A2A32;
+    --white: #F5F5F7;
+    --silver: #B0B0B8;
+    --muted: #6C6C74;
+    --darkred: #7A0A0A;
+    --red: #C62828;
+    --redbright: #E53935;
+    --green: #2E7D32;
+    --greenlight: #43A047;
+    --orange: #EF6C00;
+    --blue: #1565C0;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: var(--black);
+    color: var(--white);
+    min-height: 100vh;
+    padding: 24px;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ─────── Header ─────── */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, var(--dark), var(--card));
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 48px; height: 48px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--red), var(--darkred));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 20px; color: white;
+    box-shadow: 0 4px 12px rgba(198,40,40,0.4);
+  }
+  .brand-text h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+  .brand-text p {
+    font-size: 11px; color: var(--muted);
+    letter-spacing: 1.5px; text-transform: uppercase;
+  }
+  .badge {
+    padding: 6px 12px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  }
+  .badge-live {
+    background: rgba(46,125,50,0.15);
+    color: var(--greenlight);
+    border: 1px solid rgba(67,160,71,0.4);
+  }
+
+  /* ─────── Banner ─────── */
+  .banner {
+    padding: 12px 18px; border-radius: 12px;
+    margin-bottom: 20px; font-size: 12.5px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .banner-warn {
+    background: rgba(239,108,0,0.10);
+    border: 1px solid rgba(239,108,0,0.3);
+    color: #FFB74D;
+  }
+
+  /* ─────── Toolbar ─────── */
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    padding: 16px 20px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 20px;
+  }
+  .toolbar input, .toolbar select {
+    background: var(--dark);
+    border: 1px solid var(--border);
+    color: var(--white);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: all 0.2s;
+  }
+  .toolbar input:focus, .toolbar select:focus {
+    border-color: var(--red);
+    box-shadow: 0 0 0 3px rgba(198,40,40,0.15);
+  }
+  .toolbar input { flex: 1; min-width: 200px; }
+  .toolbar button {
+    background: linear-gradient(135deg, var(--red), var(--darkred));
+    color: white; border: none;
+    padding: 10px 20px; border-radius: 10px;
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; letter-spacing: 0.3px;
+  }
+  .toolbar button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(198,40,40,0.35);
+  }
+  .toolbar button.ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--silver);
+  }
+  .toolbar button.ghost:hover {
+    background: var(--card-hover);
+    box-shadow: none;
+  }
+
+  /* ─────── Stats ─────── */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    padding: 16px 18px;
+    background: linear-gradient(135deg, var(--card), var(--dark));
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    transition: all 0.2s;
+  }
+  .stat-card:hover {
+    border-color: rgba(198,40,40,0.5);
+    transform: translateY(-2px);
+  }
+  .stat-value {
+    font-size: 26px; font-weight: 800;
+    color: var(--white); line-height: 1;
+  }
+  .stat-label {
+    font-size: 10px; color: var(--muted);
+    letter-spacing: 1.2px; text-transform: uppercase;
+    font-weight: 600; margin-top: 4px;
+  }
+  .stat-card.highlight-red { border-color: rgba(198,40,40,0.4); }
+  .stat-card.highlight-red .stat-value { color: var(--redbright); }
+  .stat-card.highlight-green { border-color: rgba(67,160,71,0.4); }
+  .stat-card.highlight-green .stat-value { color: var(--greenlight); }
+
+  /* ─────── User cards ─────── */
+  .users-grid { display: grid; gap: 14px; }
+
+  .user-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: all 0.2s;
+  }
+  .user-card:hover { border-color: rgba(198,40,40,0.35); }
+
+  .user-header {
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 14px;
+    cursor: pointer; user-select: none;
+    transition: background 0.15s;
+  }
+  .user-header:hover { background: var(--card-hover); }
+
+  .avatar {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--red), var(--darkred));
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 18px; color: white;
+    overflow: hidden; flex-shrink: 0;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+  .user-info { flex: 1; min-width: 0; }
+  .user-name {
+    font-size: 15px; font-weight: 700;
+    letter-spacing: 0.2px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .user-meta {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    margin-top: 4px; font-size: 11.5px; color: var(--silver);
+  }
+
+  .role-tag {
+    padding: 3px 9px; border-radius: 6px;
+    font-size: 9px; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase;
+  }
+  .role-own {
+    background: rgba(198,40,40,0.18);
+    color: var(--redbright);
+    border: 1px solid rgba(198,40,40,0.4);
+  }
+  .role-cust {
+    background: rgba(21,101,192,0.18);
+    color: #64B5F6;
+    border: 1px solid rgba(21,101,192,0.4);
+  }
+
+  .chevron {
+    font-size: 14px; color: var(--muted);
+    transition: transform 0.25s; flex-shrink: 0;
+  }
+  .user-card.expanded .chevron { transform: rotate(90deg); }
+
+  /* ─────── Expanded body ─────── */
+  .user-body {
+    display: none;
+    padding: 20px;
+    background: var(--dark);
+    border-top: 1px solid var(--border);
+  }
+  .user-card.expanded .user-body { display: block; }
+
+  .section { margin-bottom: 20px; }
+  .section:last-child { margin-bottom: 0; }
+
+  .section-title {
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--redbright); margin-bottom: 10px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::before {
+    content: ''; width: 3px; height: 14px;
+    background: var(--red); border-radius: 2px;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .info-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 14px;
+  }
+  .info-label {
+    font-size: 10px; color: var(--muted);
+    letter-spacing: 1px; text-transform: uppercase;
+    font-weight: 600; margin-bottom: 3px;
+  }
+  .info-value {
+    font-size: 13px; color: var(--white);
+    font-weight: 500; word-break: break-word;
+  }
+
+  .chip-list { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    padding: 6px 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 11.5px; color: var(--silver);
+  }
+  .chip strong { color: var(--white); font-weight: 700; }
+
+  .data-table {
+    width: 100%; border-collapse: collapse;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    font-size: 12px;
+  }
+  .data-table th {
+    background: rgba(198,40,40,0.10);
+    color: var(--redbright);
+    font-weight: 700; font-size: 10px;
+    letter-spacing: 1px; text-transform: uppercase;
+    padding: 10px 12px; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--silver);
+  }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .pill {
+    display: inline-block;
+    padding: 3px 9px; border-radius: 6px;
+    font-size: 10px; font-weight: 700;
+    letter-spacing: 0.5px; text-transform: uppercase;
+  }
+  .pill-pending { background: rgba(239,108,0,0.18); color: #FFB74D; }
+  .pill-active { background: rgba(67,160,71,0.18); color: #81C784; }
+  .pill-completed { background: rgba(46,125,50,0.25); color: #A5D6A7; }
+  .pill-rejected { background: rgba(198,40,40,0.20); color: #EF9A9A; }
+  .pill-expired { background: rgba(108,108,116,0.25); color: var(--silver); }
+  .pill-verified { background: rgba(67,160,71,0.18); color: #81C784; }
+  .pill-unpaid { background: rgba(198,40,40,0.15); color: #EF9A9A; }
+  .pill-paid { background: rgba(67,160,71,0.18); color: #81C784; }
+  .pill-default { background: rgba(108,108,116,0.20); color: var(--silver); }
+
+  .center-msg {
+    padding: 60px 20px; text-align: center;
+    color: var(--muted); font-size: 14px;
+  }
+  .spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--red);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-row { color: var(--muted); font-style: italic; }
+
+  @media (max-width: 640px) {
+    body { padding: 12px; }
+    .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+    .user-meta { flex-direction: column; gap: 4px; }
+    .stat-value { font-size: 22px; }
+    .data-table { font-size: 11px; }
+    .data-table th, .data-table td { padding: 8px; }
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<div class="header">
+  <div class="brand">
+    <div class="brand-logo">KT</div>
+    <div class="brand-text">
+      <h1>Krishna Tyre</h1>
+      <p>Super Admin Console</p>
+    </div>
+  </div>
+  <span class="badge badge-live">● LIVE</span>
+</div>
+
+<div class="banner banner-warn">
+  <span>⚠️</span>
+  <span>No authentication — for internal / dev use only.</span>
+</div>
+
+<!-- ═══ TOOLBAR ═══ -->
+<div class="toolbar">
+  <input id="searchInput" type="text" placeholder="Search by name or number..." />
+  <select id="roleFilter">
+    <option value="">All Roles</option>
+    <option value="OWN">Owners Only</option>
+    <option value="CUST">Customers Only</option>
+  </select>
+  <select id="activeFilter">
+    <option value="">All Status</option>
+    <option value="true">Active Only</option>
+    <option value="false">Inactive Only</option>
+  </select>
+  <select id="subFilter">
+    <option value="">All Subs</option>
+    <option value="true">Subscribed Only</option>
+    <option value="false">Not Subscribed</option>
+  </select>
+  <button id="loadBtn" onclick="loadUsers()">⟳ Load</button>
+  <button class="ghost" onclick="toggleAll()">Expand All</button>
+</div>
+
+<!-- ═══ STATS ═══ -->
+<div class="stats" id="statsRow">
+  <div class="stat-card"><div class="stat-value" id="statTotal">—</div><div class="stat-label">Total Users</div></div>
+  <div class="stat-card highlight-red"><div class="stat-value" id="statOwners">—</div><div class="stat-label">Owners</div></div>
+  <div class="stat-card"><div class="stat-value" id="statCustomers">—</div><div class="stat-label">Customers</div></div>
+  <div class="stat-card highlight-green"><div class="stat-value" id="statSubscribed">—</div><div class="stat-label">Subscribed</div></div>
+  <div class="stat-card"><div class="stat-value" id="statProducts">—</div><div class="stat-label">Products</div></div>
+  <div class="stat-card"><div class="stat-value" id="statOrders">—</div><div class="stat-label">Total Orders</div></div>
+</div>
+
+<!-- ═══ USER LIST ═══ -->
+<div id="usersContainer">
+  <div class="center-msg">Click <strong>Load</strong> to fetch users</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// API Base URL — same origin as this page
+// ═══════════════════════════════════════════════════════════════════════
+const API_BASE = '/api';
+
+// ═══════════════════════════════════════════════════════════════════════
+// Main loader
+// ═══════════════════════════════════════════════════════════════════════
+async function loadUsers() {
+  const container = document.getElementById('usersContainer');
+  const btn = document.getElementById('loadBtn');
+  const search = document.getElementById('searchInput').value.trim();
+  const role = document.getElementById('roleFilter').value;
+  const active = document.getElementById('activeFilter').value;
+  const sub = document.getElementById('subFilter').value;
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Loading...';
+  container.innerHTML = '<div class="center-msg"><div class="spinner"></div>Fetching all users...</div>';
+
+  // Build query string
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (role) params.append('role', role);
+  if (active) params.append('active', active);
+  if (sub) params.append('subscribed', sub);
+
+  const qs = params.toString();
+  const url = `${API_BASE}/admin/users/full/${qs ? '?' + qs : ''}`;
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+
+    if (!json.status) throw new Error(json.message || 'Failed');
+
+    renderUsers(json.data || []);
+    renderStats(json.data || []);
+  } catch (e) {
+    container.innerHTML = `
+      <div class="center-msg" style="color:#EF9A9A">
+        ❌ Failed to load users<br><br>
+        <small style="color:#6C6C74">${escapeHtml(e.message)}</small>
+      </div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '⟳ Load';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Render top stats
+// ═══════════════════════════════════════════════════════════════════════
+function renderStats(users) {
+  const total = users.length;
+  let owners = 0, customers = 0, subscribed = 0, products = 0, orders = 0;
+
+  users.forEach(u => {
+    const code = u.user.role.role_code;
+    if (code === 'OWN') owners++;
+    else if (code === 'CUST') customers++;
+    if (u.user.subscribed) subscribed++;
+    products += (u.products || []).length;
+    orders += ((u.orders?.placed || []).length + (u.orders?.received || []).length);
+  });
+
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statOwners').textContent = owners;
+  document.getElementById('statCustomers').textContent = customers;
+  document.getElementById('statSubscribed').textContent = subscribed;
+  document.getElementById('statProducts').textContent = products;
+  document.getElementById('statOrders').textContent = orders;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Render user cards
+// ═══════════════════════════════════════════════════════════════════════
+function renderUsers(users) {
+  const container = document.getElementById('usersContainer');
+
+  if (!users.length) {
+    container.innerHTML = '<div class="center-msg">No users found</div>';
+    return;
+  }
+
+  container.innerHTML = `<div class="users-grid">${
+    users.map(u => renderUserCard(u)).join('')
+  }</div>`;
+
+  // Attach click handlers
+  document.querySelectorAll('.user-header').forEach(el => {
+    el.addEventListener('click', () => {
+      el.closest('.user-card').classList.toggle('expanded');
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Render one user card
+// ═══════════════════════════════════════════════════════════════════════
+function renderUserCard(u) {
+  const user = u.user;
+  const role = user.role;
+  const isOwner = role.role_code === 'OWN';
+  const initial = (user.name || '?').charAt(0).toUpperCase();
+
+  const avatarHtml = user.profile_image_url
+    ? `<img src="${escapeAttr(user.profile_image_url)}" onerror="this.style.display='none'; this.parentNode.textContent='${escapeAttr(initial)}'">`
+    : initial;
+
+  // Stats per user
+  const summary = u.summary || {};
+
+  return `
+  <div class="user-card">
+    <div class="user-header">
+      <div class="avatar">${avatarHtml}</div>
+      <div class="user-info">
+        <div class="user-name">
+          <span>${escapeHtml(user.name)}</span>
+          <span class="role-tag ${isOwner ? 'role-own' : 'role-cust'}">
+            ${escapeHtml(role.role_code)}
+          </span>
+          ${user.subscribed ? '<span class="pill pill-active">★ Premium</span>' : ''}
+          ${!user.is_active ? '<span class="pill pill-rejected">Inactive</span>' : ''}
+        </div>
+        <div class="user-meta">
+          <span>📱 ${escapeHtml(user.number)}</span>
+          <span>🆔 u_id: ${user.u_id}</span>
+          <span>📅 ${formatDate(user.created_at)}</span>
+          <span>🔔 ${summary.notifications?.unread || 0} unread</span>
+        </div>
+      </div>
+      <span class="chevron">▶</span>
+    </div>
+
+    <div class="user-body">
+      ${renderUserSection(user)}
+      ${renderKycSection(u.kyc)}
+      ${renderSubscriptionSection(u.subscriptions)}
+      ${renderAppointmentsSection(u.appointments)}
+      ${renderEmergenciesSection(u.emergencies)}
+      ${renderBillsSection(u.bills)}
+      ${renderOrdersSection(u.orders)}
+      ${renderProductsSection(u.products)}
+      ${renderNotificationsSection(u.notifications)}
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Sections
+// ═══════════════════════════════════════════════════════════════════════
+function renderUserSection(u) {
+  return `
+  <div class="section">
+    <div class="section-title">👤 User Info</div>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-label">Name</div><div class="info-value">${escapeHtml(u.name)}</div></div>
+      <div class="info-item"><div class="info-label">Number</div><div class="info-value">${escapeHtml(u.number)}</div></div>
+      <div class="info-item"><div class="info-label">Role</div><div class="info-value">${escapeHtml(u.role.role_name)} (${escapeHtml(u.role.role_code)})</div></div>
+      <div class="info-item"><div class="info-label">Subscribed</div><div class="info-value">${u.subscribed ? '✅ Yes' : '❌ No'}</div></div>
+      <div class="info-item"><div class="info-label">Shop Open</div><div class="info-value">${u.shop_open ? '🟢 Open' : '🔴 Closed'}</div></div>
+      <div class="info-item"><div class="info-label">Emergency Service</div><div class="info-value">${u.emergency_service ? '✅ Available' : '❌ Off'}</div></div>
+      <div class="info-item"><div class="info-label">Account Active</div><div class="info-value">${u.is_active ? '✅ Active' : '❌ Disabled'}</div></div>
+      <div class="info-item"><div class="info-label">Created</div><div class="info-value">${formatDate(u.created_at)}</div></div>
+    </div>
+  </div>`;
+}
+
+function renderKycSection(kyc) {
+  if (!kyc) {
+    return `
+    <div class="section">
+      <div class="section-title">🆔 KYC</div>
+      <div class="empty-row">No KYC submitted</div>
+    </div>`;
+  }
+  return `
+  <div class="section">
+    <div class="section-title">🆔 KYC</div>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-label">Aadhaar</div><div class="info-value">${escapeHtml(kyc.aadhaar_number)}</div></div>
+      <div class="info-item"><div class="info-label">PAN</div><div class="info-value">${escapeHtml(kyc.pan_number)}</div></div>
+      <div class="info-item"><div class="info-label">GST</div><div class="info-value">${kyc.gst_number ? escapeHtml(kyc.gst_number) : '—'}</div></div>
+      <div class="info-item"><div class="info-label">Status</div><div class="info-value">${pill(kyc.status)}</div></div>
+    </div>
+  </div>`;
+}
+
+function renderSubscriptionSection(subs) {
+  if (!subs || (!subs.active && !subs.history.length)) {
+    return `
+    <div class="section">
+      <div class="section-title">💎 Subscriptions</div>
+      <div class="empty-row">No subscriptions</div>
+    </div>`;
+  }
+
+  const activeHtml = subs.active ? `
+    <div class="info-item" style="border-color:rgba(67,160,71,0.4);background:rgba(67,160,71,0.05);margin-bottom:10px">
+      <div class="info-label">⭐ Active Subscription</div>
+      <div class="info-value">
+        ${escapeHtml(subs.active.vehicle_type.toUpperCase())} • ${escapeHtml(subs.active.plan_title)}
+        — ₹${subs.active.amount_rupees} • Expires ${formatDate(subs.active.expires_at)}
+      </div>
+    </div>` : '';
+
+  const rows = subs.history.map(s => `
+    <tr>
+      <td>${escapeHtml(s.vehicle_type)}</td>
+      <td>${escapeHtml(s.plan_title)}</td>
+      <td>₹${s.amount_rupees}</td>
+      <td>${pill(s.status)}</td>
+      <td>${formatDate(s.started_at) || '—'}</td>
+      <td>${formatDate(s.expires_at) || '—'}</td>
+    </tr>
+  `).join('');
+
+  return `
+  <div class="section">
+    <div class="section-title">💎 Subscriptions (${subs.history.length})</div>
+    ${activeHtml}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Vehicle</th><th>Plan</th><th>Amount</th>
+          <th>Status</th><th>Started</th><th>Expires</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
+function renderAppointmentsSection(appts) {
+  const asCust = appts?.as_customer || [];
+  const asOwner = appts?.as_owner || [];
+  if (!asCust.length && !asOwner.length) {
+    return `
+    <div class="section">
+      <div class="section-title">📅 Appointments</div>
+      <div class="empty-row">No appointments</div>
+    </div>`;
+  }
+
+  let html = `<div class="section">
+    <div class="section-title">📅 Appointments</div>`;
+
+  if (asCust.length) {
+    html += `<div style="margin-bottom:10px"><strong style="color:var(--silver);font-size:11px;letter-spacing:1px">AS CUSTOMER (${asCust.length})</strong></div>`;
+    html += `<table class="data-table" style="margin-bottom:14px">
+      <thead><tr><th>#</th><th>Vehicle</th><th>Service</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>
+        ${asCust.map(a => `
+          <tr>
+            <td>${a.appointment_id}</td>
+            <td>${escapeHtml(a.vehicle_model)} (${escapeHtml(a.vehicle_number)})</td>
+            <td>${escapeHtml(a.service_type)}</td>
+            <td>${a.appointment_date || '—'}</td>
+            <td>${pill(a.status)}</td>
+          </tr>`).join('')}
+      </tbody></table>`;
+  }
+
+  if (asOwner.length) {
+    html += `<div style="margin-bottom:10px"><strong style="color:var(--silver);font-size:11px;letter-spacing:1px">AS OWNER (${asOwner.length})</strong></div>`;
+    html += `<table class="data-table">
+      <thead><tr><th>#</th><th>Customer</th><th>Vehicle</th><th>Service</th><th>Status</th></tr></thead>
+      <tbody>
+        ${asOwner.map(a => `
+          <tr>
+            <td>${a.appointment_id}</td>
+            <td>${escapeHtml(a.customer?.name || '—')}</td>
+            <td>${escapeHtml(a.vehicle_model)}</td>
+            <td>${escapeHtml(a.service_type)}</td>
+            <td>${pill(a.status)}</td>
+          </tr>`).join('')}
+      </tbody></table>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function renderEmergenciesSection(emgs) {
+  const asCust = emgs?.as_customer || [];
+  const asOwner = emgs?.as_owner || [];
+  if (!asCust.length && !asOwner.length) {
+    return `
+    <div class="section">
+      <div class="section-title">🚨 Emergency Appointments</div>
+      <div class="empty-row">No emergencies</div>
+    </div>`;
+  }
+
+  let html = `<div class="section"><div class="section-title">🚨 Emergency Appointments</div>`;
+
+  if (asCust.length) {
+    html += `<div style="margin-bottom:10px"><strong style="color:var(--silver);font-size:11px">AS CUSTOMER (${asCust.length})</strong></div>`;
+    html += emergencyTable(asCust, false);
+  }
+  if (asOwner.length) {
+    html += `<div style="margin:14px 0 10px"><strong style="color:var(--silver);font-size:11px">AS OWNER (${asOwner.length})</strong></div>`;
+    html += emergencyTable(asOwner, true);
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function emergencyTable(list, showCustomer) {
+  return `<table class="data-table">
+    <thead><tr>
+      <th>#</th>
+      ${showCustomer ? '<th>Customer</th>' : ''}
+      <th>Vehicle</th>
+      <th>Location</th>
+      <th>Status</th>
+      <th>Created</th>
+    </tr></thead>
+    <tbody>
+      ${list.map(e => `
+        <tr>
+          <td>${e.emergency_id}</td>
+          ${showCustomer ? `<td>${escapeHtml(e.customer?.name || '—')}</td>` : ''}
+          <td>${escapeHtml(e.vehicle_model)}</td>
+          <td>${escapeHtml(e.location)}</td>
+          <td>${pill(e.status)}</td>
+          <td>${formatDate(e.created_at)}</td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function renderBillsSection(bills) {
+  const asOwner = bills?.as_owner || [];
+  const asCust = bills?.as_customer || [];
+  if (!asOwner.length && !asCust.length) {
+    return `
+    <div class="section">
+      <div class="section-title">🧾 Bills</div>
+      <div class="empty-row">No bills</div>
+    </div>`;
+  }
+
+  let html = `<div class="section"><div class="section-title">🧾 Bills</div>`;
+
+  if (asOwner.length) {
+    html += `<div style="margin-bottom:10px"><strong style="color:var(--silver);font-size:11px">GENERATED BY THIS USER (${asOwner.length})</strong></div>`;
+    html += billsTable(asOwner, false);
+  }
+  if (asCust.length) {
+    html += `<div style="margin:14px 0 10px"><strong style="color:var(--silver);font-size:11px">BILLED TO THIS USER (${asCust.length})</strong></div>`;
+    html += billsTable(asCust, true);
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function billsTable(list, showOwner) {
+  return `<table class="data-table">
+    <thead><tr>
+      <th>#</th>
+      <th>${showOwner ? 'Owner' : 'Customer'}</th>
+      <th>Vehicle</th>
+      <th>Items</th>
+      <th>Total</th>
+      <th>Date</th>
+    </tr></thead>
+    <tbody>
+      ${list.map(b => `
+        <tr>
+          <td>${b.bill_id}</td>
+          <td>${escapeHtml(showOwner ? (b.owner?.name || '—') : b.customer_name)}</td>
+          <td>${escapeHtml(b.vehicle_number)}</td>
+          <td>${b.services.length}</td>
+          <td>₹${b.total_amount.toFixed(2)}</td>
+          <td>${formatDate(b.generated_at)}</td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function renderOrdersSection(orders) {
+  const placed = orders?.placed || [];
+  const received = orders?.received || [];
+  if (!placed.length && !received.length) {
+    return `
+    <div class="section">
+      <div class="section-title">📦 Orders</div>
+      <div class="empty-row">No orders</div>
+    </div>`;
+  }
+
+  let html = `<div class="section"><div class="section-title">📦 Orders</div>`;
+
+  if (placed.length) {
+    html += `<div style="margin-bottom:10px"><strong style="color:var(--silver);font-size:11px">PLACED BY THIS USER (${placed.length})</strong></div>`;
+    html += ordersTable(placed, false);
+  }
+  if (received.length) {
+    html += `<div style="margin:14px 0 10px"><strong style="color:var(--silver);font-size:11px">RECEIVED AT THIS SHOP (${received.length})</strong></div>`;
+    html += ordersTable(received, true);
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+function ordersTable(list, showCustomer) {
+  return `<table class="data-table">
+    <thead><tr>
+      <th>#</th>
+      ${showCustomer ? '<th>Customer</th>' : ''}
+      <th>Items</th>
+      <th>Total</th>
+      <th>Status</th>
+      <th>Payment</th>
+      <th>Date</th>
+    </tr></thead>
+    <tbody>
+      ${list.map(o => `
+        <tr>
+          <td>${o.order_id}</td>
+          ${showCustomer ? `<td>${escapeHtml(o.customer_name)}</td>` : ''}
+          <td>${o.items.length}</td>
+          <td>₹${o.total_amount.toFixed(2)}</td>
+          <td>${pill(o.status)}</td>
+          <td>${pill(o.payment_status)}</td>
+          <td>${formatDate(o.placed_at)}</td>
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function renderProductsSection(products) {
+  if (!products?.length) {
+    return `
+    <div class="section">
+      <div class="section-title">🛒 Products Listed</div>
+      <div class="empty-row">No products</div>
+    </div>`;
+  }
+
+  return `
+  <div class="section">
+    <div class="section-title">🛒 Products Listed (${products.length})</div>
+    <table class="data-table">
+      <thead><tr>
+        <th>#</th><th>Name</th><th>Category</th><th>Brand</th>
+        <th>Price</th><th>Stock</th><th>Status</th>
+      </tr></thead>
+      <tbody>
+        ${products.map(p => `
+          <tr>
+            <td>${p.product_id}</td>
+            <td>${escapeHtml(p.product_name)}</td>
+            <td>${escapeHtml(p.category)}</td>
+            <td>${escapeHtml(p.brand_name)}</td>
+            <td>₹${p.product_price.toFixed(2)}</td>
+            <td>${p.stock_number}</td>
+            <td>${p.is_available ? '<span class="pill pill-active">Available</span>' : '<span class="pill pill-expired">Out</span>'}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+function renderNotificationsSection(notifications) {
+  if (!notifications?.length) {
+    return `
+    <div class="section">
+      <div class="section-title">🔔 Notifications</div>
+      <div class="empty-row">No notifications</div>
+    </div>`;
+  }
+
+  return `
+  <div class="section">
+    <div class="section-title">🔔 Notifications (last ${notifications.length})</div>
+    <table class="data-table">
+      <thead><tr>
+        <th>#</th><th>Title</th><th>Message</th><th>Read</th><th>Date</th>
+      </tr></thead>
+      <tbody>
+        ${notifications.map(n => `
+          <tr>
+            <td>${n.notification_id}</td>
+            <td>${escapeHtml(n.title)}</td>
+            <td>${escapeHtml(n.message.slice(0, 80))}${n.message.length > 80 ? '…' : ''}</td>
+            <td>${n.is_read ? '✅' : '🔵'}</td>
+            <td>${formatDate(n.created_at)}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Helpers
+// ═══════════════════════════════════════════════════════════════════════
+function pill(status) {
+  const s = (status || '').toLowerCase();
+  const classes = {
+    'pending': 'pill-pending',
+    'active': 'pill-active',
+    'completed': 'pill-completed',
+    'rejected': 'pill-rejected',
+    'expired': 'pill-expired',
+    'verified': 'pill-verified',
+    'unpaid': 'pill-unpaid',
+    'paid': 'pill-paid',
+  };
+  const cls = classes[s] || 'pill-default';
+  return `<span class="pill ${cls}">${escapeHtml(status || '—')}</span>`;
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-IN', {
+      day: '2-digit', month: 'short', year: 'numeric',
+    });
+  } catch { return iso; }
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeAttr(str) {
+  return escapeHtml(str);
+}
+
+function toggleAll() {
+  const cards = document.querySelectorAll('.user-card');
+  const anyCollapsed = Array.from(cards).some(c => !c.classList.contains('expanded'));
+  cards.forEach(c => {
+    if (anyCollapsed) c.classList.add('expanded');
+    else c.classList.remove('expanded');
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// Auto-load on page open
+// ═══════════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', loadUsers);
+
+// Enter key in search
+document.getElementById('searchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') loadUsers();
+});
+</script>
+
+</body>
+</html>
